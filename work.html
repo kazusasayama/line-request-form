@@ -11,20 +11,31 @@ button{width:100%;padding:14px;margin-top:20px;background:#06C755;color:#fff;bor
 .req{color:#d00}
 .opt{color:#777;font-size:.9em}
 </style>
-
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
+async function initLiff() {
+ await liff.init({ liffId: "2011075821-RCsbGkwo" });
+ const profile = await liff.getProfile();
+ document.getElementById("user_id").value = profile.userId;
+ document.getElementById("display_name").value = profile.displayName;
+}
 function sw(){
  let v=document.getElementById('occ').value;
  document.getElementById('occ_in').style.display=v=='in'?'block':'none';
  document.getElementById('occ_out').style.display=v=='out'?'block':'none';
 }
-window.onload=sw;
+window.onload = function() {
+ sw();
+ initLiff();
+};
 </script>
 </head>
 <body><div class='wrap'>
 <form action="https://bluish-slacker-hexagon.ngrok-free.dev/submit"
       method="post"
       enctype="multipart/form-data">
+<input type="hidden" name="user_id" id="user_id">
+<input type="hidden" name="display_name" id="display_name">
 <h1>作業依頼フォーム</h1>
 <label>作業内容 <span class='req'>必須</span></label>
 <textarea name="work" placeholder='例）洗浄便座交換'></textarea>
