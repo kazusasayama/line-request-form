@@ -14,10 +14,28 @@ button{width:100%;padding:14px;margin-top:20px;background:#06C755;color:#fff;bor
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
 async function initLiff() {
- await liff.init({ liffId: "2011075821-RCsbGkwo" });
- const profile = await liff.getProfile();
- document.getElementById("user_id").value = profile.userId;
- document.getElementById("display_name").value = profile.displayName;
+    try {
+
+        await liff.init({
+            liffId: "2011075821-RCsbGkwo"
+        });
+
+        console.log("LIFF初期化成功");
+
+        const profile = await liff.getProfile();
+
+        console.log(profile);
+
+        document.getElementById("user_id").value = profile.userId;
+        document.getElementById("display_name").value = profile.displayName;
+
+    } catch (e) {
+
+        console.error(e);
+
+        alert("LIFFエラー\n" + e);
+
+    }
 }
 function sw(){
  let v=document.getElementById('occ').value;
@@ -33,9 +51,11 @@ window.onload = function() {
 <body><div class='wrap'>
 <form action="https://bluish-slacker-hexagon.ngrok-free.dev/submit"
       method="post"
-      enctype="multipart/form-data">
+      enctype="multipart/form-data"
+      onsubmit="alert(document.getElementById('user_id').value);">
 <input type="hidden" name="user_id" id="user_id">
 <input type="hidden" name="display_name" id="display_name">
+<h2 style="color:red">LIFF TEST 2026-08-12</h2>
 <h1>作業依頼フォーム</h1>
 <label>作業内容 <span class='req'>必須</span></label>
 <textarea name="work" placeholder='例）洗浄便座交換'></textarea>
