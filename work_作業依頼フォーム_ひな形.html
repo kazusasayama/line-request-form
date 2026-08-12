@@ -22,27 +22,31 @@ window.onload=sw;
 </script>
 </head>
 <body><div class='wrap'>
+<form action="https://bluish-slacker-hexagon.ngrok-free.dev/submit"
+      method="post"
+      enctype="multipart/form-data">
 <h1>作業依頼フォーム</h1>
 <label>作業内容 <span class='req'>必須</span></label>
-<textarea placeholder='例）洗浄便座交換'></textarea>
-<label>住所 <span class='req'>必須</span></label><input>
-<label>物件名 <span class='req'>必須</span></label><input>
-<label>部屋番号 <span class='req'>必須</span></label><input>
+<textarea name="work" placeholder='例）洗浄便座交換'></textarea>
+<label>住所 <span class='req'>必須</span></label><input name="address">
+<label>物件名 <span class='req'>必須</span></label><input name="property">
+<label>部屋番号 <span class='req'>必須</span></label><input name="room">
 <label>入居状況 <span class='req'>必須</span></label>
-<select id='occ' onchange='sw()'><option value='in'>入居中</option><option value='out'>空室</option></select>
+<select id='occ' name="occupancy" onchange='sw()'><option value='in'>入居中</option><option value='out'>空室</option></select>
 <div id='occ_in' class='sec'>
-<label>入居者名</label><input placeholder='例）山田 太郎'>
-<label>電話番号</label><input placeholder='例）090-1234-5678'>
+<label>入居者名</label><input name="resident" placeholder='例）山田 太郎'>
+<label>電話番号</label><input name="phone" placeholder='例）090-1234-5678'>
 </div>
 <div id='occ_out' class='sec'>
-<label>オートロック番号</label><input placeholder='例）1234#'>
-<label>鍵番号</label><input placeholder='例）PS-101'>
-<label>完了期限 <span class='req'>必須</span></label><input type='date'>
+<label>オートロック番号</label><input name="autolock" placeholder='例）1234#'>
+<label>鍵番号</label><input name="key_number" placeholder='例）PS-101'>
+<label>完了期限 <span class='req'>必須</span></label><input name="deadline" type='date'>
 </div>
-<label>駐車場 <span class='opt'>任意</span></label><input placeholder='例）来客用1台'>
-<label>担当者 <span class='req'>必須</span></label><input>
+<label>駐車場 <span class='opt'>任意</span></label><input name="parking" placeholder='例）来客用1台'>
+<label>担当者 <span class='req'>必須</span></label><input name="staff">
 <label>その他連絡事項 <span class='opt'>任意</span></label>
-<textarea placeholder='例）部材は現地保管・〇〇様へ連絡後訪問'></textarea>
-<label>写真添付</label><input type='file' multiple>
+<textarea name="remarks" placeholder='例）部材は現地保管・〇〇様へ連絡後訪問'></textarea>
+<label>写真添付</label><input name="photos" type='file' multiple>
 <button>送信</button>
+</form>
 </div></body></html>
