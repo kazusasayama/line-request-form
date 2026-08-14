@@ -43,8 +43,46 @@ function sw(){
  document.getElementById('occ_out').style.display=v=='out'?'block':'none';
 }
 window.onload = function() {
- sw();
- initLiff();
+    sw();
+    initLiff();
+
+    try {
+        const form = document.querySelector('form');
+        if (form) {
+            const submitBtn = form.querySelector('button[type="submit"], button');
+            form.addEventListener('submit', function () {
+                try {
+                    if (!submitBtn) return;
+                    // ボタンを無効化して表示を変更（多重送信防止）
+                    submitBtn.dataset._origText = submitBtn.textContent;
+                    submitBtn.textContent = '送信中...';
+                    submitBtn.disabled = true;
+
+                    // ページ遷移が発生しなかった（送信エラー等）場合のみボタンを戻す仕組み
+                    const restoreTimer = setTimeout(function () {
+                        try {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = submitBtn.dataset._origText || '送信';
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }, 10000);
+
+                    // 正常にページ遷移する場合は beforeunload でタイマーをクリア
+                    const clearOnUnload = function () {
+                        clearTimeout(restoreTimer);
+                        window.removeEventListener('beforeunload', clearOnUnload);
+                    };
+                    window.addEventListener('beforeunload', clearOnUnload);
+
+                } catch (e) {
+                    console.error(e);
+                }
+            });
+        }
+    } catch (e) {
+        console.error(e);
+    }
 };
 </script>
 </head>
