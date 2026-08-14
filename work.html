@@ -66,10 +66,12 @@ window.onload = function() {
 
         function render(q){
             if(!box) return;
-            const kw = (q||'').trim();
+            const kw = (q||'').trim().toLowerCase();
             if(kw.length === 0){ box.innerHTML=''; hide(); return; }
             const matched = addressList.filter(function(it){
-                return (it.label && it.label.indexOf(kw) !== -1) || (it.value && it.value.indexOf(kw) !== -1);
+                const lab = (it.label||'').toLowerCase();
+                const val = (it.value||'').toLowerCase();
+                return lab.includes(kw) || val.includes(kw);
             }).slice(0,20);
             if(matched.length === 0){ box.innerHTML=''; hide(); return; }
             box.innerHTML = matched.map(function(it){
