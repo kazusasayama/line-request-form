@@ -59,12 +59,12 @@ window.onload = function() {
 <textarea name="work" placeholder='例）洗浄便座交換'></textarea>
 <label>住所 <span class='req'>必須</span></label><input name="address">
 <label>物件名 <span class='req'>必須</span></label><input name="property">
-<label>部屋番号 <span class='req'>必須</span></label><input name="room">
+<label>部屋番号 <span class='req'>必須</span></label><input name="room" type="tel" inputmode="numeric">
 <label>入居状況 <span class='req'>必須</span></label>
 <select id='occ' name="occupancy" onchange='sw()'><option value='in'>入居中</option><option value='out'>空室</option></select>
 <div id='occ_in' class='sec'>
 <label>入居者名</label><input name="resident" placeholder='例）山田 太郎'>
-<label>電話番号</label><input name="phone" placeholder='例）090-1234-5678'>
+<label>電話番号</label><input name="phone" type="tel" inputmode="numeric" placeholder='例）090-1234-5678'>
 </div>
 <div id='occ_out' class='sec'>
 <label>オートロック番号</label><input name="autolock" placeholder='例）1234#'>
