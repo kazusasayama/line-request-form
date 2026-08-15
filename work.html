@@ -301,11 +301,68 @@ window.onload = function() {
         });
     })();
 
+    function saveFormState(){
+        try {
+            const form = document.querySelector('form');
+            if (!form) return;
+            const payload = {};
+            Array.from(form.elements).forEach(function(el){
+                if (!el.name || el.disabled || el.type === 'file') return;
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    payload[el.name] = el.checked ? el.value : '';
+                    return;
+                }
+                if (el.type === 'select-multiple') {
+                    payload[el.name] = Array.from(el.selectedOptions).map(function(opt){ return opt.value; });
+                    return;
+                }
+                payload[el.name] = el.value;
+            });
+            sessionStorage.setItem('lineRequestFormState', JSON.stringify(payload));
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function restoreFormState(){
+        try {
+            const form = document.querySelector('form');
+            if (!form) return;
+            const raw = sessionStorage.getItem('lineRequestFormState');
+            if (!raw) return;
+            const payload = JSON.parse(raw);
+            Object.keys(payload).forEach(function(name){
+                const el = form.elements.namedItem(name);
+                if (!el) return;
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    el.checked = String(payload[name]) === String(el.value);
+                    return;
+                }
+                if (el.type === 'select-multiple') {
+                    const values = Array.isArray(payload[name]) ? payload[name] : [payload[name]];
+                    Array.from(el.options).forEach(function(option){
+                        option.selected = values.indexOf(option.value) !== -1;
+                    });
+                    return;
+                }
+                el.value = payload[name] || '';
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    restoreFormState();
+
     try {
         const form = document.querySelector('form');
         if (form) {
+            form.addEventListener('input', saveFormState);
+            form.addEventListener('change', saveFormState);
+
             const submitBtn = form.querySelector('button[type="submit"], button');
             form.addEventListener('submit', function () {
+                saveFormState();
                 try {
                     if (!submitBtn) return;
                     // ボタンを無効化して表示を変更（多重送信防止）
