@@ -55,6 +55,9 @@ window.onload = function() {
     // 住所候補の準備（address_list.json を読み込む）
     (function(){
         let addressList = [];
+        let selectedCity = '';
+        let selectedWard = '';
+
         fetch('address_list.json').then(function(r){ if(!r.ok) throw new Error('fetch failed'); return r.json(); }).then(function(data){ if(Array.isArray(data)) addressList = data; }).catch(function(e){ console.warn('address_list.json load failed', e); addressList = []; });
 
         function getElem(id){ return document.getElementById(id); }
@@ -64,40 +67,237 @@ window.onload = function() {
         function hide(){ if(box) box.style.display='none'; }
         function show(){ if(box) box.style.display='block'; }
 
+        function normalizeText(v){
+            return (v || '').replace(/[ 　]/g, '').toLowerCase();
+        }
+
+        function escapeRegExp(v){
+            return String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function splitAddress(value){
+            const full = (value || '').trim();
+            const cityMatch = full.match(/^(.+市)/);
+            const city = cityMatch ? cityMatch[1] : '';
+            const wardMatch = city ? full.match(new RegExp('^' + escapeRegExp(city) + '(.+区)')) : null;
+            const ward = wardMatch ? wardMatch[1] : '';
+            const town = city && ward ? full.slice(city.length + ward.length) : (city ? full.slice(city.length) : full);
+            return { city: city, ward: ward, town: town };
+        }
+
+        function matchRank(candidate, query){
+            const q = normalizeText(query);
+            if(!q) return 99;
+
+            const target = normalizeText(candidate || '');
+            const parts = [target];
+            const parsed = splitAddress(candidate || '');
+            if(parsed.city) parts.push(normalizeText(parsed.city));
+            if(parsed.ward) parts.push(normalizeText(parsed.ward));
+            if(parsed.town) parts.push(normalizeText(parsed.town));
+
+            const startsWithQuery = parts.some(function(part){
+                return part === q || part.indexOf(q) === 0;
+            });
+
+            if(!startsWithQuery) return 3;
+            if(target === q) return 0;
+            return 1;
+        }
+
+        function uniqueByValue(items){
+            const seen = new Set();
+            return items.filter(function(item){
+                const key = item.value || '';
+                if(!key || seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        }
+
+        function sortCandidates(items, query){
+            return items.sort(function(a,b){
+                const aScore = Math.min(matchRank(a.label || '', query), matchRank(a.value || '', query));
+                const bScore = Math.min(matchRank(b.label || '', query), matchRank(b.value || '', query));
+                if(aScore !== bScore) return aScore - bScore;
+                if((a.groupPriority || 99) !== (b.groupPriority || 99)) return (a.groupPriority || 99) - (b.groupPriority || 99);
+                return (a.label || a.value).localeCompare(b.label || b.value, 'ja');
+            }).slice(0, 20);
+        }
+
+        function getCitySuggestions(query){
+            const cities = Array.from(new Set(addressList.map(function(it){ return splitAddress(it.value).city; }).filter(Boolean))).map(function(city){
+                return { label: city, value: city, groupPriority: 0 };
+            });
+            return sortCandidates(cities.filter(function(item){
+                return Math.min(matchRank(item.label, query), matchRank(item.value, query)) < 3;
+            }), query);
+        }
+
+        function getWardSuggestions(cityName, query){
+            const wards = Array.from(new Set(addressList.filter(function(it){
+                return splitAddress(it.value).city === cityName;
+            }).map(function(it){
+                const p = splitAddress(it.value);
+                return p.city + p.ward;
+            }).filter(Boolean))).map(function(fullWard){
+                const p = splitAddress(fullWard);
+                return { label: p.ward, value: fullWard, groupPriority: 1 };
+            });
+            return sortCandidates(wards.filter(function(item){
+                return Math.min(matchRank(item.label, query), matchRank(item.value, query)) < 3;
+            }), query);
+        }
+
+        function getTownSuggestions(cityName, wardName, query){
+            const items = addressList.filter(function(it){
+                const p = splitAddress(it.value);
+                if(cityName && wardName) return p.city === cityName && p.ward === wardName;
+                if(cityName) return p.city === cityName;
+                return true;
+            }).map(function(it){
+                return { label: it.label || '', value: it.value || '', groupPriority: 2 };
+            });
+            return sortCandidates(uniqueByValue(items).filter(function(item){
+                return Math.min(matchRank(item.label, query), matchRank(item.value, query)) < 3;
+            }), query);
+        }
+
+        function getSuggestions(query){
+            const keyword = (query || '').trim();
+            if(!addressList.length) return [];
+
+            const directMatches = addressList.map(function(it){
+                return { label: it.label || '', value: it.value || '', groupPriority: 2 };
+            }).filter(function(item){
+                return Math.min(matchRank(item.label, keyword), matchRank(item.value, keyword)) < 3;
+            });
+
+            if(selectedCity && selectedWard){
+                return getTownSuggestions(selectedCity, selectedWard, keyword);
+            }
+
+            if(selectedCity && !selectedWard){
+                if(!keyword) return getWardSuggestions(selectedCity, '');
+                const wardMatches = getWardSuggestions(selectedCity, keyword);
+                if(wardMatches.length) return wardMatches;
+                const directWithinCity = getTownSuggestions(selectedCity, '', keyword);
+                return directWithinCity.length ? directWithinCity : directMatches;
+            }
+
+            const cityMatches = getCitySuggestions(keyword);
+            if(keyword && cityMatches.length){
+                return cityMatches;
+            }
+
+            const wardMatches = !keyword ? [] : Array.from(new Set(addressList.map(function(it){
+                const p = splitAddress(it.value);
+                return p.city && p.ward ? p.city + p.ward : '';
+            }).filter(Boolean))).map(function(fullWard){
+                const p = splitAddress(fullWard);
+                return { label: p.ward, value: fullWard, groupPriority: 1 };
+            }).filter(function(item){
+                return Math.min(matchRank(item.label, keyword), matchRank(item.value, keyword)) < 3;
+            });
+
+            if(keyword && wardMatches.length){
+                return sortCandidates(wardMatches, keyword);
+            }
+
+            return directMatches.length ? sortCandidates(directMatches, keyword) : cityMatches;
+        }
+
         function render(q){
             if(!box) return;
-            const kw = (q||'').trim().toLowerCase();
-            if(kw.length === 0){ box.innerHTML=''; hide(); return; }
-            const matched = addressList.filter(function(it){
-                const lab = (it.label||'').toLowerCase();
-                const val = (it.value||'').toLowerCase();
-                return lab.includes(kw) || val.includes(kw);
-            }).slice(0,20);
-            if(matched.length === 0){ box.innerHTML=''; hide(); return; }
-            box.innerHTML = matched.map(function(it){
-                return '<div class="suggestion-item" data-value="'+(it.value||'')+'">'
-                    +'<div class="suggestion-label">'+(it.label||'')+'</div>'
-                    +'<div class="suggestion-value">'+(it.value||'')+'</div>'
+            const keyword = (q || '').trim();
+            const suggestions = getSuggestions(keyword);
+            if(!keyword && !suggestions.length){ box.innerHTML=''; hide(); return; }
+            if(!suggestions.length){ box.innerHTML=''; hide(); return; }
+
+            box.innerHTML = suggestions.map(function(it){
+                const label = it.label || it.value;
+                const value = it.value || '';
+                const type = value === selectedCity ? 'city' : (value === (selectedCity + (selectedWard || '')) ? 'ward' : 'town');
+                return '<div class="suggestion-item" data-value="'+value+'" data-label="'+label+'" data-type="'+type+'">'
+                    +'<div class="suggestion-label">'+label+'</div>'
+                    +'<div class="suggestion-value">'+value+'</div>'
                     +'</div>';
             }).join('');
             show();
         }
 
+        function syncSelectionContext(value){
+            const current = (value || '').trim();
+            if(!current){
+                selectedCity = '';
+                selectedWard = '';
+                return;
+            }
+
+            const cityMatch = current.match(/^(.+市)/);
+            if(cityMatch){
+                const city = cityMatch[1];
+                const wardMatch = current.match(new RegExp('^' + escapeRegExp(city) + '(.+区)'));
+                if(wardMatch){
+                    selectedCity = city;
+                    selectedWard = wardMatch[1];
+                    return;
+                }
+                selectedCity = city;
+                selectedWard = '';
+                return;
+            }
+
+            selectedCity = '';
+            selectedWard = '';
+        }
+
         if(input){
-            input.addEventListener('input', function(e){ render(e.target.value); });
-            input.addEventListener('focus', function(e){ render(e.target.value); });
+            input.addEventListener('input', function(e){
+                syncSelectionContext(e.target.value);
+                render(e.target.value);
+            });
+            input.addEventListener('focus', function(e){
+                syncSelectionContext(e.target.value);
+                render(e.target.value);
+            });
         }
 
         document.addEventListener('click', function(e){
             if(!box) return;
             const item = e.target.closest && e.target.closest('.suggestion-item');
             if(item && input){
-                input.value = item.getAttribute('data-value') || '';
+                const value = item.getAttribute('data-value') || '';
+                const type = item.getAttribute('data-type') || 'town';
+
+                if(type === 'city'){
+                    selectedCity = value;
+                    selectedWard = '';
+                    input.value = value;
+                    render('');
+                    input.focus();
+                    return;
+                }
+
+                if(type === 'ward'){
+                    const parts = splitAddress(value);
+                    selectedCity = parts.city;
+                    selectedWard = parts.ward;
+                    input.value = value;
+                    render('');
+                    input.focus();
+                    return;
+                }
+
+                selectedCity = '';
+                selectedWard = '';
+                input.value = value;
                 hide();
                 input.focus();
-            } else {
-                if(!box.contains(e.target) && e.target !== input) hide();
+                return;
             }
+
+            if(!box.contains(e.target) && e.target !== input) hide();
         });
     })();
 
